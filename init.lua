@@ -3,7 +3,7 @@ local addonName = ...
 
 local CustomPortrait = E:NewModule("CustomPortrait", "AceEvent-3.0")
 
-local TEXTURE_PATH = "Interface\\AddOns\\TrueRP_PortraitSelector\\portraits\\elfe_de_sang\\paladin\\portrait_1"
+local TEXTURE_PATH_BASE = "Interface\\AddOns\\TrueRP_PortraitSelector\\portraits"
 
 -- Fonction de debug (facultative)
 local function PrintFrame(frame)
@@ -34,12 +34,31 @@ local function SearchForPlayerPortraitFrame(frame)
     return nil
 end
 
+local function GetPortraitTexture(unitKey)
+    print("GetPortraitTexture: unitKey:" .. unitKey)
+    local unitPortraitData = CustomPortraitDB[unitKey]
+    if not unitPortraitData then
+        print("Ce personnage n'a pas de portrait enregistré.")
+        return
+    end
+    if unitPortraitData then
+        print("Portrait ID :", unitPortraitData.portrait)
+    end
+    print("GetPortraitTexture: TEXTURE_PATH_BASE:" .. TEXTURE_PATH_BASE)
+    -- local texturePath = TEXTURE_PATH_BASE ..
+    --     "\\" .. unitPortraitData.race .. "\\" .. unitPortraitData.classe .. "\\" .. unitPortraitData.portrait
+    -- print("GetPortraitTexture:" .. texturePath)
+    print("unitPortraitData.portrait:" .. unitPortraitData.portrait)
+    return (unitPortraitData.portrait)
+end
+
 -- Appliquer la texture custom
-local function OverridePortrait(frame)
+local function OverridePortrait(frame, unitKey)
     local portrait = frame.Portrait
     if not portrait then return end
 
-    portrait:SetTexture(TEXTURE_PATH)
+    local texture = GetPortraitTexture(unitKey)
+    portrait:SetTexture(texture)
     portrait:SetTexCoord(0.1, 0.9, 0.1, 0.9)
     portrait:Show()
 
@@ -56,7 +75,7 @@ function CustomPortrait:PLAYER_ENTERING_WORLD()
 
             local foundFrame = SearchForPlayerPortraitFrame(UIParent)
             if foundFrame then
-                OverridePortrait(foundFrame)
+                OverridePortrait(foundFrame, UnitName("player"))
             else
                 print("CustomPortrait: toujours aucun frame avec Portrait trouvé.")
             end
