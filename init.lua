@@ -3,7 +3,7 @@ local addonName = ...
 
 local CustomPortrait = E:NewModule("CustomPortrait", "AceEvent-3.0")
 
-local TEXTURE_PATH_BASE = "Interface\\AddOns\\TrueRP_PortraitSelector\\portraits"
+-- local TEXTURE_PATH_BASE = "Interface\\AddOns\\TrueRP_PortraitSelector\\portraits"
 
 -- Fonction pour récupérer le chemin de texture du portrait
 local function GetPortraitTexture(unitKey)
