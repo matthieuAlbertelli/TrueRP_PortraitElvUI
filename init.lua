@@ -39,6 +39,17 @@ function CustomPortrait:PLAYER_ENTERING_WORLD()
             CustomPortrait:RequestGroupPortraits()
         end
     end)
+
+    -- Timer de fallback si GROUP_ROSTER_UPDATE ne se déclenche pas
+    local delayFrame = CreateFrame("Frame")
+    local delay = 2
+    delayFrame:SetScript("OnUpdate", function(self, elapsed)
+        delay = delay - elapsed
+        if delay <= 0 then
+            self:SetScript("OnUpdate", nil)
+            CustomPortrait:RequestGroupPortraits()
+        end
+    end)
 end
 
 -- Quand la cible change
