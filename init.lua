@@ -39,17 +39,6 @@ function CustomPortrait:PLAYER_ENTERING_WORLD()
             CustomPortrait:RequestGroupPortraits()
         end
     end)
-
-    -- Timer de fallback si GROUP_ROSTER_UPDATE ne se déclenche pas
-    local delayFrame = CreateFrame("Frame")
-    local delay = 2
-    delayFrame:SetScript("OnUpdate", function(self, elapsed)
-        delay = delay - elapsed
-        if delay <= 0 then
-            self:SetScript("OnUpdate", nil)
-            CustomPortrait:RequestGroupPortraits()
-        end
-    end)
 end
 
 -- Quand la cible change
@@ -68,9 +57,24 @@ function CustomPortrait:PLAYER_TARGET_CHANGED()
     end
 end
 
--- Quand un membre du groupe change
+-- Rafraîchit les portraits plusieurs fois sur quelques secondes après un changement de groupe
 function CustomPortrait:GROUP_ROSTER_UPDATE()
-    CustomPortrait:RequestGroupPortraits()
+    local counter = 0
+    local maxTries = 10
+    local interval = 0.5
+
+    local f = CreateFrame("Frame")
+    f:SetScript("OnUpdate", function(self, elapsed)
+        self.t = (self.t or 0) + elapsed
+        if self.t >= interval then
+            self.t = 0
+            counter = counter + 1
+            CustomPortrait:RequestGroupPortraits()
+            if counter >= maxTries then
+                self:SetScript("OnUpdate", nil)
+            end
+        end
+    end)
 end
 
 -- Requête les portraits des membres de groupe si manquants
@@ -81,10 +85,25 @@ function CustomPortrait:RequestGroupPortraits()
         local unit = prefix .. i
         if UnitExists(unit) and UnitIsPlayer(unit) then
             local name = UnitName(unit)
+            local frame = _G["ElvUF_PartyGroup1UnitButton" .. i]
+
+            if frame and not frame.__truerp_hooked then
+                frame.__truerp_hooked = true
+                local originalPostUpdate = frame.Portrait.PostUpdate
+                frame.Portrait.PostUpdate = function(portrait, unit)
+                    local unitName = UnitName(unit)
+                    if unitName and CustomPortraitDB[unitName] then
+                        portrait:SetTexture(CustomPortraitDB[unitName].portrait)
+                        portrait:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+                    elseif originalPostUpdate then
+                        originalPostUpdate(portrait, unit)
+                    end
+                end
+            end
+
             if name and not CustomPortraitDB[name] then
                 SendAddonMessage("TrueRP_PortraitElvUI", "REQ", "WHISPER", name)
             else
-                local frame = _G["ElvUF_PartyGroup1UnitButton" .. i]
                 if frame then
                     OverridePortrait(frame, name)
                 end
