@@ -1,0 +1,10 @@
+## Interface: 30300
+## Title: TrueRP - Portrait ElvUI
+## Notes: Remplace le portrait 2D ElvUI par un portrait TrueRP
+## Author: Matthieu Albertelli
+## Version: 1.0
+## Dependencies: TrueRP_PortraitSelector
+## RequiredDeps: ElvUI
+## LoadWith: ElvUI
+
+init.lua
