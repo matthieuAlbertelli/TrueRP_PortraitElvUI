@@ -3,6 +3,10 @@ local addonName = ...
 
 local CustomPortrait = E:NewModule("CustomPortrait", "AceEvent-3.0")
 
+
+
+
+
 -- Fonction pour récupérer le chemin de texture du portrait
 local function GetPortraitTexture(unitKey)
     local unitPortraitData = CustomPortraitDB[unitKey]
@@ -184,5 +188,23 @@ function CustomPortrait:Initialize()
     self:RegisterEvent("GROUP_ROSTER_UPDATE")
     self:RegisterEvent("CHAT_MSG_ADDON")
 end
+
+local frame = CreateFrame("Frame")
+frame:RegisterEvent("CHAT_MSG_ADDON")
+
+frame:SetScript("OnEvent", function(self, event, prefix, msg, channel, sender)
+    if event == "CHAT_MSG_ADDON" and prefix == "TRUERP_PORTRAIT" then
+        print("un portrait change")
+        local playerFrame = _G["ElvUF_Player"]
+        if playerFrame then
+            OverridePortrait(playerFrame, UnitName("player"))
+        end
+        -- local command, character = strsplit(":", msg)
+        -- if command == "UPDATE" and character then
+        --     -- Remplacer cette fonction par ton système de mise à jour de portrait
+        --     UpdateCustomPortraitFor(character)
+        -- end
+    end
+end)
 
 E:RegisterModule(CustomPortrait:GetName())
