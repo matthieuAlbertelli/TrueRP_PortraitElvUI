@@ -47,12 +47,10 @@ function CustomPortrait:PLAYER_TARGET_CHANGED()
         local targetName = UnitName("target")
         local targetFrame = _G["ElvUF_Target"]
 
-        -- Affiche directement si on a le portrait en cache
         if targetFrame and CustomPortraitDB[targetName] then
             OverridePortrait(targetFrame, targetName)
         end
 
-        -- Envoie la requête de toute façon pour s'assurer qu'on a la version à jour
         SendAddonMessage("TrueRP_PortraitElvUI", "REQ", "WHISPER", targetName)
     end
 end
@@ -87,8 +85,8 @@ function CustomPortrait:RequestGroupPortraits()
             local name = UnitName(unit)
             local frame = _G["ElvUF_PartyGroup1UnitButton" .. i]
 
-            if frame and not frame.__truerp_hooked then
-                frame.__truerp_hooked = true
+            if frame and frame.Portrait and not frame.Portrait.__truerp_hooked then
+                frame.Portrait.__truerp_hooked = true
                 local originalPostUpdate = frame.Portrait.PostUpdate
                 frame.Portrait.PostUpdate = function(portrait, unit)
                     local unitName = UnitName(unit)
@@ -103,10 +101,38 @@ function CustomPortrait:RequestGroupPortraits()
 
             if name and not CustomPortraitDB[name] then
                 SendAddonMessage("TrueRP_PortraitElvUI", "REQ", "WHISPER", name)
-            else
-                if frame then
-                    OverridePortrait(frame, name)
-                end
+            elseif frame then
+                OverridePortrait(frame, name)
+            end
+        end
+    end
+
+    local playerFrame = _G["ElvUF_Player"]
+    if playerFrame and playerFrame.Portrait and not playerFrame.Portrait.__truerp_hooked then
+        playerFrame.Portrait.__truerp_hooked = true
+        local originalPostUpdate = playerFrame.Portrait.PostUpdate
+        playerFrame.Portrait.PostUpdate = function(portrait, unit)
+            local unitName = UnitName(unit)
+            if unitName and CustomPortraitDB[unitName] then
+                portrait:SetTexture(CustomPortraitDB[unitName].portrait)
+                portrait:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+            elseif originalPostUpdate then
+                originalPostUpdate(portrait, unit)
+            end
+        end
+    end
+
+    local targetFrame = _G["ElvUF_Target"]
+    if targetFrame and targetFrame.Portrait and not targetFrame.Portrait.__truerp_hooked then
+        targetFrame.Portrait.__truerp_hooked = true
+        local originalPostUpdate = targetFrame.Portrait.PostUpdate
+        targetFrame.Portrait.PostUpdate = function(portrait, unit)
+            local unitName = UnitName(unit)
+            if unitName and CustomPortraitDB[unitName] then
+                portrait:SetTexture(CustomPortraitDB[unitName].portrait)
+                portrait:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+            elseif originalPostUpdate then
+                originalPostUpdate(portrait, unit)
             end
         end
     end
@@ -143,7 +169,6 @@ function CustomPortrait:CHAT_MSG_ADDON(_, prefix, message, channel, sender)
             end
         end
 
-        -- Mise à jour de la target si c'est le joueur concerné
         if UnitIsPlayer("target") and UnitName("target") == sender then
             local targetFrame = _G["ElvUF_Target"]
             if targetFrame then
