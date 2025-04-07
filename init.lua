@@ -60,11 +60,11 @@ function CustomPortrait:PLAYER_TARGET_CHANGED()
 end
 
 -- Rafraîchit les portraits plusieurs fois sur quelques secondes après un changement de groupe
-function CustomPortrait:GROUP_ROSTER_UPDATE()
+function CustomPortrait:PARTY_MEMBERS_CHANGED()
     local counter = 0
     local maxTries = 10
     local interval = 0.5
-
+    print("CustomPortrait:PARTY_MEMBERS_CHANGED")
     local f = CreateFrame("Frame")
     f:SetScript("OnUpdate", function(self, elapsed)
         self.t = (self.t or 0) + elapsed
@@ -185,7 +185,8 @@ end
 function CustomPortrait:Initialize()
     self:RegisterEvent("PLAYER_ENTERING_WORLD")
     self:RegisterEvent("PLAYER_TARGET_CHANGED")
-    self:RegisterEvent("GROUP_ROSTER_UPDATE")
+    self:RegisterEvent("PARTY_MEMBERS_CHANGED")
+    -- self:RegisterEvent("GROUP_ROSTER_UPDATE")
     self:RegisterEvent("CHAT_MSG_ADDON")
 end
 
