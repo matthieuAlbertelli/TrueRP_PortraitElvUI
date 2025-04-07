@@ -104,11 +104,18 @@ end
 
 -- Quand un familier est invoqué ou change
 function CustomPortrait:UNIT_PET()
-    local petFrame = _G["ElvUF_Pet"]
-    if petFrame and petFrame.Portrait and petFrame.Portrait.PostUpdate then
-        -- Force une mise à jour du portrait pour relancer PostUpdate
-        petFrame:UpdateElement("Portrait")
-    end
+    local f = CreateFrame("Frame")
+    local elapsed = 0
+    f:SetScript("OnUpdate", function(_, delta)
+        elapsed = elapsed + delta
+        if elapsed > 0.2 then
+            f:SetScript("OnUpdate", nil)
+            local petFrame = _G["ElvUF_Pet"]
+            if petFrame and petFrame.Portrait and petFrame.Portrait.PostUpdate then
+                petFrame:UpdateElement("Portrait")
+            end
+        end
+    end)
 end
 
 -- Rafraîchit les portraits plusieurs fois sur quelques secondes après un changement de groupe
