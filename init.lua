@@ -67,6 +67,25 @@ function CustomPortrait:PLAYER_ENTERING_WORLD()
             CustomPortrait:RequestGroupPortraits()
         end
     end)
+
+    -- Hook du portrait du familier
+    local petFrame = _G["ElvUF_Pet"]
+    if petFrame and petFrame.Portrait and not petFrame.Portrait.__truerp_hooked then
+        petFrame.Portrait.__truerp_hooked = true
+        local originalPostUpdate = petFrame.Portrait.PostUpdate
+        petFrame.Portrait.PostUpdate = function(portrait, unit)
+            local ownerName = UnitName("player")
+            local petName = UnitName("pet")
+            local texture = GetPetPortraitTexture(ownerName, petName)
+
+            if texture then
+                portrait:SetTexture(texture)
+                portrait:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+            elseif originalPostUpdate then
+                originalPostUpdate(portrait, unit)
+            end
+        end
+    end
 end
 
 -- Quand la cible change
