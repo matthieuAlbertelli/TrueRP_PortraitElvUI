@@ -83,13 +83,12 @@ end
 function CustomPortrait:RequestGroupPortraits()
     local count = GetNumRaidMembers() > 0 and GetNumRaidMembers() or GetNumPartyMembers()
     local prefix = GetNumRaidMembers() > 0 and "raid" or "party"
-    for i = 1, count do
-        local unit = prefix .. i
-        if UnitExists(unit) and UnitIsPlayer(unit) then
-            local name = UnitName(unit)
-            local frame = _G["ElvUF_PartyGroup1UnitButton" .. i]
+    for i = 1, 4 do
+        local frame = _G["ElvUF_PartyGroup1UnitButton" .. i]
+        if frame and frame.unit and UnitIsPlayer(frame.unit) then
+            local name = UnitName(frame.unit)
 
-            if frame and frame.Portrait and not frame.Portrait.__truerp_hooked then
+            if frame.Portrait and not frame.Portrait.__truerp_hooked then
                 frame.Portrait.__truerp_hooked = true
                 local originalPostUpdate = frame.Portrait.PostUpdate
                 frame.Portrait.PostUpdate = function(portrait, unit)
@@ -110,6 +109,7 @@ function CustomPortrait:RequestGroupPortraits()
             end
         end
     end
+
 
     local playerFrame = _G["ElvUF_Player"]
     if playerFrame and playerFrame.Portrait and not playerFrame.Portrait.__truerp_hooked then
