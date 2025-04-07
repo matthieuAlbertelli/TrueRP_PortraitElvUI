@@ -104,8 +104,10 @@ end
 
 -- Quand un familier est invoqué ou change
 function CustomPortrait:UNIT_PET()
-    if UnitExists("pet") then
-        OverridePetPortrait()
+    local petFrame = _G["ElvUF_Pet"]
+    if petFrame and petFrame.Portrait and petFrame.Portrait.PostUpdate then
+        -- Force une mise à jour du portrait pour relancer PostUpdate
+        petFrame:UpdateElement("Portrait")
     end
 end
 
