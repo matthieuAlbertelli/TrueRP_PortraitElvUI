@@ -3,15 +3,20 @@ local addonName = ...
 
 local CustomPortrait = E:NewModule("CustomPortrait", "AceEvent-3.0")
 
-
-
-
-
 -- Fonction pour récupérer le chemin de texture du portrait
 local function GetPortraitTexture(unitKey)
     local unitPortraitData = CustomPortraitDB[unitKey]
     if not unitPortraitData then return end
     return unitPortraitData.portrait
+end
+
+-- Fonction pour récupérer la texture du familier
+local function GetPetPortraitTexture(ownerName, petName)
+    if not ownerName or not petName then return end
+    local ownerData = CustomPortraitDB[ownerName]
+    if not ownerData or not ownerData.pets then return end
+    print("GetPetPortraitTexture(ownerName, petName) OK", ownerName, petName, ":", ownerData.pets[petName])
+    return ownerData.pets[petName]
 end
 
 -- Appliquer la texture custom
@@ -26,6 +31,21 @@ local function OverridePortrait(frame, unitKey)
     frame.Portrait:Show()
 end
 
+-- Appliquer le portrait du familier
+local function OverridePetPortrait()
+    local petFrame = _G["ElvUF_Pet"]
+    if not petFrame or not petFrame.Portrait or not petFrame.Portrait.SetTexture then return end
+
+    local ownerName = UnitName("player")
+    local petName = UnitName("pet")
+    local texture = GetPetPortraitTexture(ownerName, petName)
+    if not texture then return end
+
+    petFrame.Portrait:SetTexture(texture)
+    petFrame.Portrait:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+    petFrame.Portrait:Show()
+end
+
 -- Quand le joueur entre dans le monde
 function CustomPortrait:PLAYER_ENTERING_WORLD()
     local f = CreateFrame("Frame")
@@ -38,6 +58,10 @@ function CustomPortrait:PLAYER_ENTERING_WORLD()
             local playerFrame = _G["ElvUF_Player"]
             if playerFrame then
                 OverridePortrait(playerFrame, UnitName("player"))
+            end
+
+            if _G["ElvUF_Pet"] then
+                OverridePetPortrait()
             end
 
             CustomPortrait:RequestGroupPortraits()
@@ -56,6 +80,13 @@ function CustomPortrait:PLAYER_TARGET_CHANGED()
         end
 
         SendAddonMessage("TrueRP_PortraitElvUI", "REQ", "WHISPER", targetName)
+    end
+end
+
+-- Quand un familier est invoqué ou change
+function CustomPortrait:UNIT_PET()
+    if UnitExists("pet") then
+        OverridePetPortrait()
     end
 end
 
@@ -110,7 +141,6 @@ function CustomPortrait:RequestGroupPortraits()
         end
     end
 
-
     local playerFrame = _G["ElvUF_Player"]
     if playerFrame and playerFrame.Portrait and not playerFrame.Portrait.__truerp_hooked then
         playerFrame.Portrait.__truerp_hooked = true
@@ -155,7 +185,8 @@ function CustomPortrait:CHAT_MSG_ADDON(_, prefix, message, channel, sender)
         local texturePath = message:sub(6)
         if not texturePath or texturePath == "" then return end
 
-        CustomPortraitDB[sender] = { portrait = texturePath }
+        CustomPortraitDB[sender] = CustomPortraitDB[sender] or {}
+        CustomPortraitDB[sender].portrait = texturePath
 
         local count = GetNumRaidMembers() > 0 and GetNumRaidMembers() or GetNumPartyMembers()
         local prefix = GetNumRaidMembers() > 0 and "raid" or "party"
@@ -186,13 +217,12 @@ function CustomPortrait:Initialize()
     self:RegisterEvent("PLAYER_ENTERING_WORLD")
     self:RegisterEvent("PLAYER_TARGET_CHANGED")
     self:RegisterEvent("PARTY_MEMBERS_CHANGED")
-    -- self:RegisterEvent("GROUP_ROSTER_UPDATE")
     self:RegisterEvent("CHAT_MSG_ADDON")
+    self:RegisterEvent("UNIT_PET")
 end
 
 local frame = CreateFrame("Frame")
 frame:RegisterEvent("CHAT_MSG_ADDON")
-
 frame:SetScript("OnEvent", function(self, event, prefix, msg, channel, sender)
     if event == "CHAT_MSG_ADDON" and prefix == "TRUERP_PORTRAIT" then
         print("un portrait change")
@@ -200,11 +230,6 @@ frame:SetScript("OnEvent", function(self, event, prefix, msg, channel, sender)
         if playerFrame then
             OverridePortrait(playerFrame, UnitName("player"))
         end
-        -- local command, character = strsplit(":", msg)
-        -- if command == "UPDATE" and character then
-        --     -- Remplacer cette fonction par ton système de mise à jour de portrait
-        --     UpdateCustomPortraitFor(character)
-        -- end
     end
 end)
 
