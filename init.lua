@@ -46,6 +46,27 @@ local function GetPortraitFromDB(owner, pet)
     end
 end
 
+--- Affiche le portrait TrueRP du pet ciblé s’il appartient à un membre du groupe
+local function HandleTargetPetPortrait()
+    local petName = GetUnitName(UNIT_TARGET)
+    if not petName then return end
+
+    for i = 1, GetNumPartyMembers() do
+        local unit = "party" .. i
+        local petUnit = unit .. "pet"
+        if UnitExists(petUnit) and UnitName(petUnit) == petName then
+            local ownerName = GetUnitName(unit)
+            local texture = GetPortraitFromDB(ownerName, petName)
+            if texture then
+                SetPortraitTexture(_G[FRAME_TARGET].Portrait, texture)
+            else
+                SendAddonMessage(ADDON_PREFIX, "REQ", "WHISPER", ownerName)
+            end
+            break
+        end
+    end
+end
+
 --- Injecte une logique personnalisée dans le PostUpdate d'un portrait ElvUI (via RawHook)
 -- @param frame Frame - frame contenant un portrait
 -- @param unitKeyFunc function - retourne une clé d'unité (souvent UnitName)
@@ -108,7 +129,31 @@ function CustomPortrait:PLAYER_ENTERING_WORLD()
         local petName = UnitName(UNIT_PET)
 
         HookPortrait(_G[FRAME_PLAYER], GetUnitName, function(key) return GetPortraitFromDB(key) end)
-        HookPortrait(_G[FRAME_TARGET], GetUnitName, function(key) return GetPortraitFromDB(key) end)
+        -- HookPortrait(_G[FRAME_TARGET], GetUnitName, function(key) return GetPortraitFromDB(key) end)
+        HookPortrait(_G[FRAME_TARGET],
+            function(unit)
+                return UnitName(unit)
+            end,
+            function(name)
+                -- 1. Si c’est un joueur
+                if CustomPortraitDB[name] and CustomPortraitDB[name].portrait then
+                    return CustomPortraitDB[name].portrait
+                end
+
+                -- 2. Sinon, peut-être un pet
+                for i = 1, GetNumPartyMembers() do
+                    local unit = "party" .. i
+                    local petUnit = unit .. "pet"
+                    if UnitExists(petUnit) and UnitName(petUnit) == name then
+                        local owner = GetUnitName(unit)
+                        return GetPortraitFromDB(owner, name)
+                    end
+                end
+
+                return nil
+            end
+        )
+
         HookPortrait(_G[FRAME_PET], function() return playerName end,
             function(owner) return GetPortraitFromDB(owner, petName) end)
 
@@ -120,12 +165,17 @@ function CustomPortrait:PLAYER_ENTERING_WORLD()
     end)
 end
 
---- Lors du changement de cible, on override si c'est un joueur connu
 function CustomPortrait:PLAYER_TARGET_CHANGED()
     local name = GetUnitName(UNIT_TARGET)
+
     if UnitIsPlayer(UNIT_TARGET) and UnitIsConnected(UNIT_TARGET) then
-        OverridePortraitFrame(_G[FRAME_TARGET], name, function(key) return GetPortraitFromDB(key) end)
+        OverridePortraitFrame(_G[FRAME_TARGET], name, function(key)
+            return GetPortraitFromDB(key)
+        end)
         SendAddonMessage(ADDON_PREFIX, "REQ", "WHISPER", name)
+    else
+        -- Tente d'appliquer un portrait si la target est un pet connu
+        HandleTargetPetPortrait()
     end
 end
 
