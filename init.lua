@@ -205,14 +205,32 @@ function CustomPortrait:CHAT_MSG_ADDON(_, prefix, message, channel, sender)
     if message == "REQ" then
         local data = CustomPortraitDB and CustomPortraitDB[UnitName("player")]
         if data and data.portrait then
-            SendAddonMessage("TrueRP_PortraitElvUI", "RESP:" .. data.portrait, "WHISPER", sender)
+            local response = "RESP:" .. data.portrait
+            if data.pets then
+                local pets = {}
+                for petName, petPath in pairs(data.pets) do
+                    table.insert(pets, petName .. "=" .. petPath)
+                end
+                response = response .. "|" .. table.concat(pets, ",")
+            end
+            SendAddonMessage("TrueRP_PortraitElvUI", response, "WHISPER", sender)
         end
     elseif message:sub(1, 5) == "RESP:" then
-        local texturePath = message:sub(6)
-        if not texturePath or texturePath == "" then return end
+        local payload = message:sub(6)
+        local mainPortrait, petData = strsplit("|", payload)
 
         CustomPortraitDB[sender] = CustomPortraitDB[sender] or {}
-        CustomPortraitDB[sender].portrait = texturePath
+        CustomPortraitDB[sender].portrait = mainPortrait
+
+        if petData then
+            CustomPortraitDB[sender].pets = {}
+            for pair in string.gmatch(petData, "[^,]+") do
+                local petName, petPath = strmatch(pair, "([^=]+)=([^=]+)")
+                if petName and petPath then
+                    CustomPortraitDB[sender].pets[petName] = petPath
+                end
+            end
+        end
 
         local count = GetNumRaidMembers() > 0 and GetNumRaidMembers() or GetNumPartyMembers()
         local prefix = GetNumRaidMembers() > 0 and "raid" or "party"
