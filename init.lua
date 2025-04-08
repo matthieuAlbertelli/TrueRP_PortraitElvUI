@@ -4,13 +4,22 @@ local E, L, V, P, G = unpack(ElvUI)
 local addonName = ...
 local CustomPortrait = E:NewModule("CustomPortrait", "AceEvent-3.0", "AceHook-3.0")
 
+-- Constantes
+local ADDON_PREFIX = "TrueRP_PortraitElvUI"
+local FRAME_PLAYER = "ElvUF_Player"
+local FRAME_TARGET = "ElvUF_Target"
+local FRAME_PET = "ElvUF_Pet"
+local UNIT_PLAYER = "player"
+local UNIT_TARGET = "target"
+local UNIT_PET = "pet"
+
 -- Utils
 
 --- Retourne le nom de l'unité spécifiée ou celui du joueur par défaut
 -- @param unit string|nil - l'identifiant de l'unité ("player", "target", etc.)
 -- @return string
 local function GetUnitName(unit)
-    return UnitName(unit or "player")
+    return UnitName(unit or UNIT_PLAYER)
 end
 
 --- Applique une texture personnalisée à un portrait ElvUI
@@ -83,7 +92,7 @@ local function HandleGroupFrames()
                 return GetPortraitFromDB(key)
             end)
             if not CustomPortraitDB[name] then
-                SendAddonMessage("TrueRP_PortraitElvUI", "REQ", "WHISPER", name)
+                SendAddonMessage(ADDON_PREFIX, "REQ", "WHISPER", name)
             end
         end
     end
@@ -94,18 +103,18 @@ end
 --- À l'entrée dans le monde, on hook et override tous les portraits du joueur
 function CustomPortrait:PLAYER_ENTERING_WORLD()
     C_Timer.After(0.5, function()
-        local playerName = GetUnitName("player")
-        local targetName = GetUnitName("target")
-        local petName = UnitName("pet")
+        local playerName = GetUnitName(UNIT_PLAYER)
+        local targetName = GetUnitName(UNIT_TARGET)
+        local petName = UnitName(UNIT_PET)
 
-        HookPortrait(_G["ElvUF_Player"], GetUnitName, function(key) return GetPortraitFromDB(key) end)
-        HookPortrait(_G["ElvUF_Target"], GetUnitName, function(key) return GetPortraitFromDB(key) end)
-        HookPortrait(_G["ElvUF_Pet"], function() return playerName end,
+        HookPortrait(_G[FRAME_PLAYER], GetUnitName, function(key) return GetPortraitFromDB(key) end)
+        HookPortrait(_G[FRAME_TARGET], GetUnitName, function(key) return GetPortraitFromDB(key) end)
+        HookPortrait(_G[FRAME_PET], function() return playerName end,
             function(owner) return GetPortraitFromDB(owner, petName) end)
 
-        OverridePortraitFrame(_G["ElvUF_Player"], playerName, function(key) return GetPortraitFromDB(key) end)
-        OverridePortraitFrame(_G["ElvUF_Target"], targetName, function(key) return GetPortraitFromDB(key) end)
-        OverridePortraitFrame(_G["ElvUF_Pet"], playerName, function(owner) return GetPortraitFromDB(owner, petName) end)
+        OverridePortraitFrame(_G[FRAME_PLAYER], playerName, function(key) return GetPortraitFromDB(key) end)
+        OverridePortraitFrame(_G[FRAME_TARGET], targetName, function(key) return GetPortraitFromDB(key) end)
+        OverridePortraitFrame(_G[FRAME_PET], playerName, function(owner) return GetPortraitFromDB(owner, petName) end)
 
         self:RequestGroupPortraits()
     end)
@@ -113,17 +122,17 @@ end
 
 --- Lors du changement de cible, on override si c'est un joueur connu
 function CustomPortrait:PLAYER_TARGET_CHANGED()
-    local name = GetUnitName("target")
-    if UnitIsPlayer("target") and UnitIsConnected("target") then
-        OverridePortraitFrame(_G["ElvUF_Target"], name, function(key) return GetPortraitFromDB(key) end)
-        SendAddonMessage("TrueRP_PortraitElvUI", "REQ", "WHISPER", name)
+    local name = GetUnitName(UNIT_TARGET)
+    if UnitIsPlayer(UNIT_TARGET) and UnitIsConnected(UNIT_TARGET) then
+        OverridePortraitFrame(_G[FRAME_TARGET], name, function(key) return GetPortraitFromDB(key) end)
+        SendAddonMessage(ADDON_PREFIX, "REQ", "WHISPER", name)
     end
 end
 
 --- Lors du changement d'état du pet, on force un update de son portrait
 function CustomPortrait:UNIT_PET()
     C_Timer.After(0.2, function()
-        local petFrame = _G["ElvUF_Pet"]
+        local petFrame = _G[FRAME_PET]
         if petFrame and petFrame.Portrait then
             petFrame:UpdateElement("Portrait")
         end
@@ -150,14 +159,14 @@ end
 --- Parcourt le groupe et hook les portraits manquants
 function CustomPortrait:RequestGroupPortraits()
     HandleGroupFrames()
-    HookPortrait(_G["ElvUF_Player"], GetUnitName, function(key) return GetPortraitFromDB(key) end)
-    HookPortrait(_G["ElvUF_Target"], GetUnitName, function(key) return GetPortraitFromDB(key) end)
+    HookPortrait(_G[FRAME_PLAYER], GetUnitName, function(key) return GetPortraitFromDB(key) end)
+    HookPortrait(_G[FRAME_TARGET], GetUnitName, function(key) return GetPortraitFromDB(key) end)
 end
 
 --- Envoie les données de portrait du joueur courant à un destinataire donné
 -- @param to string - nom du joueur cible
 local function SendPortraitData(to)
-    local data = CustomPortraitDB[GetUnitName("player")]
+    local data = CustomPortraitDB[GetUnitName(UNIT_PLAYER)]
     if not data or not data.portrait then return end
 
     local msg = "RESP:" .. data.portrait
@@ -168,12 +177,12 @@ local function SendPortraitData(to)
         end
         msg = msg .. "|" .. table.concat(parts, ",")
     end
-    SendAddonMessage("TrueRP_PortraitElvUI", msg, "WHISPER", to)
+    SendAddonMessage(ADDON_PREFIX, msg, "WHISPER", to)
 end
 
 --- Réception des messages Addon pour envoyer ou recevoir les données de portrait
 function CustomPortrait:CHAT_MSG_ADDON(_, prefix, message, _, sender)
-    if prefix ~= "TrueRP_PortraitElvUI" then return end
+    if prefix ~= ADDON_PREFIX then return end
 
     if message == "REQ" then
         SendPortraitData(sender)
@@ -195,8 +204,8 @@ function CustomPortrait:CHAT_MSG_ADDON(_, prefix, message, _, sender)
             end
         end
 
-        if UnitIsPlayer("target") and GetUnitName("target") == sender then
-            OverridePortraitFrame(_G["ElvUF_Target"], sender, function(key) return GetPortraitFromDB(key) end)
+        if UnitIsPlayer(UNIT_TARGET) and GetUnitName(UNIT_TARGET) == sender then
+            OverridePortraitFrame(_G[FRAME_TARGET], sender, function(key) return GetPortraitFromDB(key) end)
         end
 
         HandleGroupFrames()
