@@ -1,8 +1,8 @@
--- TrueRP_PortraitElvUI - Refactored version
+-- TrueRP_PortraitElvUI - Refactored version with AceHook integration
 
 local E, L, V, P, G = unpack(ElvUI)
 local addonName = ...
-local CustomPortrait = E:NewModule("CustomPortrait", "AceEvent-3.0")
+local CustomPortrait = E:NewModule("CustomPortrait", "AceEvent-3.0", "AceHook-3.0")
 
 -- Utils
 
@@ -37,7 +37,7 @@ local function GetPortraitFromDB(owner, pet)
     end
 end
 
---- Injecte une logique personnalisée dans le PostUpdate d'un portrait ElvUI
+--- Injecte une logique personnalisée dans le PostUpdate d'un portrait ElvUI (via RawHook)
 -- @param frame Frame - frame contenant un portrait
 -- @param unitKeyFunc function - retourne une clé d'unité (souvent UnitName)
 -- @param textureFunc function - retourne une texture selon la clé
@@ -45,16 +45,19 @@ local function HookPortrait(frame, unitKeyFunc, textureFunc)
     if not frame or not frame.Portrait or frame.Portrait.__truerp_hooked then return end
 
     frame.Portrait.__truerp_hooked = true
-    local original = frame.Portrait.PostUpdate
-    frame.Portrait.PostUpdate = function(portrait, unit)
+
+    CustomPortrait:RawHook(frame.Portrait, "PostUpdate", function(portrait, unit)
         local key = unitKeyFunc(unit)
         local tex = textureFunc(key)
         if tex then
             SetPortraitTexture(portrait, tex)
-        elseif original then
-            original(portrait, unit)
+        else
+            local original = CustomPortrait.hooks[frame.Portrait] and CustomPortrait.hooks[frame.Portrait].PostUpdate
+            if original then
+                return original(portrait, unit)
+            end
         end
-    end
+    end)
 end
 
 --- Applique une texture personnalisée à un frame directement
