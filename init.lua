@@ -15,7 +15,6 @@ local function GetPetPortraitTexture(ownerName, petName)
     if not ownerName or not petName then return end
     local ownerData = CustomPortraitDB[ownerName]
     if not ownerData or not ownerData.pets then return end
-    print("GetPetPortraitTexture(ownerName, petName) OK", ownerName, petName, ":", ownerData.pets[petName])
     return ownerData.pets[petName]
 end
 
@@ -123,7 +122,6 @@ function CustomPortrait:PARTY_MEMBERS_CHANGED()
     local counter = 0
     local maxTries = 10
     local interval = 0.5
-    print("CustomPortrait:PARTY_MEMBERS_CHANGED")
     local f = CreateFrame("Frame")
     f:SetScript("OnUpdate", function(self, elapsed)
         self.t = (self.t or 0) + elapsed
@@ -253,10 +251,10 @@ local frame = CreateFrame("Frame")
 frame:RegisterEvent("CHAT_MSG_ADDON")
 frame:SetScript("OnEvent", function(self, event, prefix, msg, channel, sender)
     if event == "CHAT_MSG_ADDON" and prefix == "TRUERP_PORTRAIT" then
-        print("un portrait change")
         local playerFrame = _G["ElvUF_Player"]
         if playerFrame then
             OverridePortrait(playerFrame, UnitName("player"))
+            OverridePetPortrait()
         end
     end
 end)
