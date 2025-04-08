@@ -135,12 +135,15 @@ function CustomPortrait:PLAYER_ENTERING_WORLD()
                 return UnitName(unit)
             end,
             function(name)
-                -- 1. Si c’est un joueur
+                local playerName = GetUnitName("player")
+                local petName = UnitName("pet")
+
+                -- 1. Cas joueur normal
                 if CustomPortraitDB[name] and CustomPortraitDB[name].portrait then
                     return CustomPortraitDB[name].portrait
                 end
 
-                -- 2. Sinon, peut-être un pet
+                -- 2. Cas pet ciblé d’un membre du groupe
                 for i = 1, GetNumPartyMembers() do
                     local unit = "party" .. i
                     local petUnit = unit .. "pet"
@@ -148,6 +151,11 @@ function CustomPortrait:PLAYER_ENTERING_WORLD()
                         local owner = GetUnitName(unit)
                         return GetPortraitFromDB(owner, name)
                     end
+                end
+
+                -- 3. Cas spécial : tu cibles ton propre familier
+                if name == petName then
+                    return GetPortraitFromDB(playerName, petName)
                 end
 
                 return nil
