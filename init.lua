@@ -6,6 +6,12 @@ local CustomPortrait = E:NewModule("CustomPortrait", "AceEvent-3.0", "AceHook-3.
 
 -- Constantes
 local ADDON_PREFIX = "TrueRP_PortraitElvUI"
+-- Protocole de communication entre joueurs
+local MessageType = {
+    RequestPortrait = "PORTRAIT_REQUEST",
+    ResponsePortrait = "PORTRAIT_RESPONSE",
+}
+
 local FRAME_PLAYER = "ElvUF_Player"
 local FRAME_TARGET = "ElvUF_Target"
 local FRAME_PET = "ElvUF_Pet"
@@ -21,11 +27,17 @@ local function EnsureDBEntry(owner)
     CustomPortraitDB[owner] = CustomPortraitDB[owner] or { pets = {} }
 end
 
---- Vérifie si un portrait personnalisé existe pour un joueur
--- @param owner string
+--- Vérifie si un message commence par un certain préfixe suivi de ":"
+-- @param message string
+-- @param prefix string
 -- @return boolean
-local function HasPortrait(owner)
-    return GetPortraitFromDB(owner) ~= nil
+local function MessageHasPrefix(message, prefix)
+    return message:sub(1, #prefix + 1) == prefix .. ":"
+end
+
+--- Extrait le contenu après un préfixe de message suivi de ":"
+local function ExtractMessagePayload(message, prefix)
+    return message:sub(#prefix + 2)
 end
 
 --- Retourne le nom de l'unité spécifiée ou celui du joueur par défaut
@@ -57,6 +69,13 @@ local function GetPortraitFromDB(owner, pet)
     else
         return data.portrait
     end
+end
+
+--- Vérifie si un portrait personnalisé existe pour un joueur
+-- @param owner string
+-- @return boolean
+local function HasPortrait(owner)
+    return GetPortraitFromDB(owner) ~= nil
 end
 
 --- Retourne la table des portraits de familiers pour un joueur donné
@@ -98,7 +117,7 @@ local function HandleTargetPetPortrait()
             if texture then
                 SetPortraitTexture(_G[FRAME_TARGET].Portrait, texture)
             else
-                SendAddonMessage(ADDON_PREFIX, "REQ", "WHISPER", ownerName)
+                SendAddonMessage(ADDON_PREFIX, MessageType.RequestPortrait, "WHISPER", ownerName)
             end
             break
         end
@@ -149,7 +168,7 @@ local function HandleGroupFrames()
             OverridePortraitFrame(frame, name, GetPortraitFromDB)
 
             if not HasPortrait(name) then
-                SendAddonMessage(ADDON_PREFIX, "REQ", "WHISPER", name)
+                SendAddonMessage(ADDON_PREFIX, MessageType.RequestPortrait, "WHISPER", name)
             end
         end
     end
@@ -263,7 +282,7 @@ function CustomPortrait:PLAYER_TARGET_CHANGED()
         OverridePortraitFrame(_G[FRAME_TARGET], name, function(key)
             return GetPortraitFromDB(key)
         end)
-        SendAddonMessage(ADDON_PREFIX, "REQ", "WHISPER", name)
+        SendAddonMessage(ADDON_PREFIX, MessageType.RequestPortrait, "WHISPER", name)
     else
         -- Tente d'appliquer un portrait si la target est un pet connu
         HandleTargetPetPortrait()
@@ -311,7 +330,7 @@ local function SendPortraitData(to)
     local portrait = GetPortraitFromDB(playerName)
     if not portrait then return end
 
-    local msg = "RESP:" .. portrait
+    local msg = MessageType.ResponsePortrait .. ":" .. portrait
     local pets = GetPetPortraits(playerName)
     if pets then
         local parts = {}
@@ -328,13 +347,13 @@ end
 function CustomPortrait:CHAT_MSG_ADDON(_, prefix, message, _, sender)
     if prefix ~= ADDON_PREFIX then return end
 
-    if message == "REQ" then
+    if message == MessageType.RequestPortrait then
         SendPortraitData(sender)
         return
     end
 
-    if message:sub(1, 5) == "RESP:" then
-        local payload = message:sub(6)
+    if MessageHasPrefix(message, MessageType.ResponsePortrait) then
+        local payload = ExtractMessagePayload(message, MessageType.ResponsePortrait)
         local main, pets = strsplit("|", payload)
 
         if main then
