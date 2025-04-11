@@ -7,4 +7,11 @@
 ## RequiredDeps: ElvUI, TrueRP_PortraitSelector
 ## LoadWith: ElvUI
 
-init.lua
+core.lua
+config.lua
+utils.lua
+db.lua
+network.lua
+frames.lua
+events.lua
+main.lua
