@@ -19,6 +19,9 @@ local UNIT_PLAYER = "player"
 local UNIT_TARGET = "target"
 local UNIT_PET = "pet"
 
+
+
+
 -- Utils
 
 --- S'assure qu'une entrée existe dans la base de données pour un joueur
@@ -103,6 +106,13 @@ local function SetPetPortraitInDB(owner, pet, path)
     CustomPortraitDB[owner].pets[pet] = path
 end
 
+
+local GroupPortraitFrameNames = {
+    "ElvUF_PartyGroup1UnitButton1",
+    "ElvUF_PartyGroup1UnitButton2",
+    "ElvUF_PartyGroup1UnitButton3",
+    "ElvUF_PartyGroup1UnitButton4",
+}
 --- Affiche le portrait TrueRP du pet ciblé s’il appartient à un membre du groupe
 local function HandleTargetPetPortrait()
     local petName = GetUnitName(UNIT_TARGET)
@@ -158,9 +168,9 @@ local function OverridePortraitFrame(frame, unitKey, textureFunc)
 end
 
 --- Parcourt les frames de groupe et applique les hooks & textures personnalisés
-local function HandleGroupFrames()
-    for i = 1, 4 do
-        local frame = _G["ElvUF_PartyGroup1UnitButton" .. i]
+local function InitGroupPortraits()
+    for _, frameName in ipairs(GroupPortraitFrameNames) do
+        local frame = _G[frameName]
         if frame and frame.unit and UnitIsPlayer(frame.unit) then
             local name = GetUnitName(frame.unit)
 
@@ -172,24 +182,6 @@ local function HandleGroupFrames()
             end
         end
     end
-end
-
--- Événements
-
---- À l'entrée dans le monde, on hook et override tous les portraits du joueur
---- Hook les portraits de base (joueur, target, pet)
---- Hook le portrait du joueur
-local function HookPlayerPortrait()
-    HookPortrait(_G[FRAME_PLAYER], GetUnitName, GetPortraitFromDB)
-end
-
---- Hook le portrait du pet du joueur
-local function HookPetPortrait()
-    HookPortrait(_G[FRAME_PET], function()
-        return GetUnitName(UNIT_PLAYER)
-    end, function(owner)
-        return GetPortraitFromDB(owner, UnitName(UNIT_PET))
-    end)
 end
 
 --- Détermine la texture de portrait à afficher pour la target actuelle
@@ -224,48 +216,6 @@ local function ResolveTargetPortrait(name)
 
     return nil
 end
-
---- Hook le portrait de la target (joueur, pet du groupe, etc.)
-local function HookTargetPortrait()
-    HookPortrait(
-        _G[FRAME_TARGET],
-        function(unit) return UnitName(unit) end,
-        ResolveTargetPortrait
-    )
-end
-
---- Hook les portraits principaux (joueur, target, pet)
-local function HookBasePortraits()
-    HookPlayerPortrait()
-    HookTargetPortrait()
-    HookPetPortrait()
-end
-
-local function OverridePlayerPortrait()
-    local name = GetUnitName(UNIT_PLAYER)
-    OverridePortraitFrame(_G[FRAME_PLAYER], name, GetPortraitFromDB)
-end
-
-local function OverrideTargetPortrait()
-    local name = GetUnitName(UNIT_TARGET)
-    OverridePortraitFrame(_G[FRAME_TARGET], name, ResolveTargetPortrait)
-end
-
-local function OverridePetPortrait()
-    local playerName = GetUnitName(UNIT_PLAYER)
-    local petName = UnitName(UNIT_PET)
-
-    OverridePortraitFrame(_G[FRAME_PET], playerName, function(owner)
-        return GetPortraitFromDB(owner, petName)
-    end)
-end
-
-local function OverrideBasePortraits()
-    OverridePlayerPortrait()
-    OverrideTargetPortrait()
-    OverridePetPortrait()
-end
-
 local PortraitFrames = {
     [FRAME_PLAYER] = {
         unit = UNIT_PLAYER,
@@ -282,6 +232,7 @@ local PortraitFrames = {
         end,
     },
 }
+
 
 local function InitConfiguredPortraits()
     for frameName, config in pairs(PortraitFrames) do
@@ -345,9 +296,7 @@ end
 
 --- Parcourt le groupe et hook les portraits manquants
 function CustomPortrait:RequestGroupPortraits()
-    HandleGroupFrames()
-    HookPortrait(_G[FRAME_PLAYER], GetUnitName, function(key) return GetPortraitFromDB(key) end)
-    HookPortrait(_G[FRAME_TARGET], GetUnitName, function(key) return GetPortraitFromDB(key) end)
+    InitGroupPortraits()
 end
 
 --- Envoie les données de portrait du joueur courant à un destinataire donné
@@ -400,7 +349,7 @@ function CustomPortrait:CHAT_MSG_ADDON(_, prefix, message, _, sender)
             OverridePortraitFrame(_G[FRAME_TARGET], sender, GetPortraitFromDB)
         end
 
-        HandleGroupFrames()
+        InitGroupPortraits()
     end
 end
 
