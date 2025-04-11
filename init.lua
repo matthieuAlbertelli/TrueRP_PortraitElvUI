@@ -15,6 +15,19 @@ local UNIT_PET = "pet"
 
 -- Utils
 
+--- S'assure qu'une entrée existe dans la base de données pour un joueur
+-- @param owner string
+local function EnsureDBEntry(owner)
+    CustomPortraitDB[owner] = CustomPortraitDB[owner] or { pets = {} }
+end
+
+--- Vérifie si un portrait personnalisé existe pour un joueur
+-- @param owner string
+-- @return boolean
+local function HasPortrait(owner)
+    return GetPortraitFromDB(owner) ~= nil
+end
+
 --- Retourne le nom de l'unité spécifiée ou celui du joueur par défaut
 -- @param unit string|nil - l'identifiant de l'unité ("player", "target", etc.)
 -- @return string
@@ -44,6 +57,31 @@ local function GetPortraitFromDB(owner, pet)
     else
         return data.portrait
     end
+end
+
+--- Retourne la table des portraits de familiers pour un joueur donné
+-- @param owner string
+-- @return table|nil
+local function GetPetPortraits(owner)
+    local data = CustomPortraitDB[owner]
+    return data and data.pets or nil
+end
+
+--- Définit le portrait principal d’un joueur
+-- @param owner string
+-- @param path string
+local function SetPortraitInDB(owner, path)
+    EnsureDBEntry(owner)
+    CustomPortraitDB[owner].portrait = path
+end
+
+--- Définit le portrait d’un familier pour un joueur
+-- @param owner string
+-- @param pet string
+-- @param path string
+local function SetPetPortraitInDB(owner, pet, path)
+    EnsureDBEntry(owner)
+    CustomPortraitDB[owner].pets[pet] = path
 end
 
 --- Affiche le portrait TrueRP du pet ciblé s’il appartient à un membre du groupe
@@ -106,13 +144,11 @@ local function HandleGroupFrames()
         local frame = _G["ElvUF_PartyGroup1UnitButton" .. i]
         if frame and frame.unit and UnitIsPlayer(frame.unit) then
             local name = GetUnitName(frame.unit)
-            HookPortrait(frame, GetUnitName, function(unitKey)
-                return GetPortraitFromDB(unitKey)
-            end)
-            OverridePortraitFrame(frame, name, function(key)
-                return GetPortraitFromDB(key)
-            end)
-            if not CustomPortraitDB[name] then
+
+            HookPortrait(frame, GetUnitName, GetPortraitFromDB)
+            OverridePortraitFrame(frame, name, GetPortraitFromDB)
+
+            if not HasPortrait(name) then
                 SendAddonMessage(ADDON_PREFIX, "REQ", "WHISPER", name)
             end
         end
@@ -123,53 +159,92 @@ end
 
 --- À l'entrée dans le monde, on hook et override tous les portraits du joueur
 --- Hook les portraits de base (joueur, target, pet)
-local function HookBasePortraits()
-    HookPortrait(_G[FRAME_PLAYER], GetUnitName, function(name)
-        return GetPortraitFromDB(name)
-    end)
+--- Hook le portrait du joueur
+local function HookPlayerPortrait()
+    HookPortrait(_G[FRAME_PLAYER], GetUnitName, GetPortraitFromDB)
+end
 
-    HookPortrait(_G[FRAME_TARGET], function(unit)
-        return UnitName(unit)
-    end, function(name)
-        local playerName = GetUnitName(UNIT_PLAYER)
-        local petName = UnitName(UNIT_PET)
-
-        if CustomPortraitDB[name] and CustomPortraitDB[name].portrait then
-            return CustomPortraitDB[name].portrait
-        end
-
-        for i = 1, GetNumPartyMembers() do
-            local unit = "party" .. i
-            local petUnit = unit .. "pet"
-            if UnitExists(petUnit) and UnitName(petUnit) == name then
-                local owner = GetUnitName(unit)
-                return GetPortraitFromDB(owner, name)
-            end
-        end
-
-        if name == petName then
-            return GetPortraitFromDB(playerName, petName)
-        end
-
-        return nil
-    end)
-
-    HookPortrait(_G[FRAME_PET], function() return GetUnitName(UNIT_PLAYER) end, function(owner)
+--- Hook le portrait du pet du joueur
+local function HookPetPortrait()
+    HookPortrait(_G[FRAME_PET], function()
+        return GetUnitName(UNIT_PLAYER)
+    end, function(owner)
         return GetPortraitFromDB(owner, UnitName(UNIT_PET))
     end)
 end
 
---- Override les textures initiales (joueur, target, pet)
-local function OverrideBasePortraits()
+--- Détermine la texture de portrait à afficher pour la target actuelle
+-- Peut être un joueur, un pet du groupe, ou son propre pet
+-- @param name string - Nom de l’unité ciblée
+-- @return string|nil - Chemin de la texture personnalisée, ou nil
+local function ResolveTargetPortrait(name)
+    if not name then return nil end
+
     local playerName = GetUnitName(UNIT_PLAYER)
-    local targetName = GetUnitName(UNIT_TARGET)
     local petName = UnitName(UNIT_PET)
 
-    OverridePortraitFrame(_G[FRAME_PLAYER], playerName, GetPortraitFromDB)
-    OverridePortraitFrame(_G[FRAME_TARGET], targetName, GetPortraitFromDB)
+    -- Cas 1 : Joueur avec un portrait défini
+    local portrait = GetPortraitFromDB(name)
+    if portrait then return portrait end
+
+
+    -- Cas 2 : Pet appartenant à un membre du groupe
+    for i = 1, GetNumPartyMembers() do
+        local unit = "party" .. i
+        local petUnit = unit .. "pet"
+        if UnitExists(petUnit) and UnitName(petUnit) == name then
+            local owner = GetUnitName(unit)
+            return GetPortraitFromDB(owner, name)
+        end
+    end
+
+    -- Cas 3 : Ton propre pet
+    if name == petName then
+        return GetPortraitFromDB(playerName, petName)
+    end
+
+    return nil
+end
+
+--- Hook le portrait de la target (joueur, pet du groupe, etc.)
+local function HookTargetPortrait()
+    HookPortrait(
+        _G[FRAME_TARGET],
+        function(unit) return UnitName(unit) end,
+        ResolveTargetPortrait
+    )
+end
+
+--- Hook les portraits principaux (joueur, target, pet)
+local function HookBasePortraits()
+    HookPlayerPortrait()
+    HookTargetPortrait()
+    HookPetPortrait()
+end
+
+local function OverridePlayerPortrait()
+    local name = GetUnitName(UNIT_PLAYER)
+    OverridePortraitFrame(_G[FRAME_PLAYER], name, GetPortraitFromDB)
+end
+
+local function OverrideTargetPortrait()
+    local name = GetUnitName(UNIT_TARGET)
+    OverridePortraitFrame(_G[FRAME_TARGET], name, ResolveTargetPortrait)
+end
+
+local function OverridePetPortrait()
+    local playerName = GetUnitName(UNIT_PLAYER)
+    local petName = UnitName(UNIT_PET)
+
     OverridePortraitFrame(_G[FRAME_PET], playerName, function(owner)
         return GetPortraitFromDB(owner, petName)
     end)
+end
+
+local function OverrideBasePortraits()
+    OverridePlayerPortrait()
+    OverrideTargetPortrait()
+    OverridePetPortrait()
 end
 
 --- Fonction refactorisée : à l'entrée en jeu
@@ -232,17 +307,20 @@ end
 --- Envoie les données de portrait du joueur courant à un destinataire donné
 -- @param to string - nom du joueur cible
 local function SendPortraitData(to)
-    local data = CustomPortraitDB[GetUnitName(UNIT_PLAYER)]
-    if not data or not data.portrait then return end
+    local playerName = GetUnitName(UNIT_PLAYER)
+    local portrait = GetPortraitFromDB(playerName)
+    if not portrait then return end
 
-    local msg = "RESP:" .. data.portrait
-    if data.pets then
+    local msg = "RESP:" .. portrait
+    local pets = GetPetPortraits(playerName)
+    if pets then
         local parts = {}
-        for pet, tex in pairs(data.pets) do
+        for pet, tex in pairs(pets) do
             table.insert(parts, pet .. "=" .. tex)
         end
         msg = msg .. "|" .. table.concat(parts, ",")
     end
+
     SendAddonMessage(ADDON_PREFIX, msg, "WHISPER", to)
 end
 
@@ -258,20 +336,22 @@ function CustomPortrait:CHAT_MSG_ADDON(_, prefix, message, _, sender)
     if message:sub(1, 5) == "RESP:" then
         local payload = message:sub(6)
         local main, pets = strsplit("|", payload)
-        CustomPortraitDB[sender] = CustomPortraitDB[sender] or { pets = {} }
-        CustomPortraitDB[sender].portrait = main
+
+        if main then
+            SetPortraitInDB(sender, main)
+        end
 
         if pets then
             for pair in string.gmatch(pets, "[^,]+") do
                 local n, t = strmatch(pair, "([^=]+)=([^=]+)")
                 if n and t then
-                    CustomPortraitDB[sender].pets[n] = t
+                    SetPetPortraitInDB(sender, n, t)
                 end
             end
         end
 
         if UnitIsPlayer(UNIT_TARGET) and GetUnitName(UNIT_TARGET) == sender then
-            OverridePortraitFrame(_G[FRAME_TARGET], sender, function(key) return GetPortraitFromDB(key) end)
+            OverridePortraitFrame(_G[FRAME_TARGET], sender, GetPortraitFromDB)
         end
 
         HandleGroupFrames()
