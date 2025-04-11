@@ -266,11 +266,38 @@ local function OverrideBasePortraits()
     OverridePetPortrait()
 end
 
+local PortraitFrames = {
+    [FRAME_PLAYER] = {
+        unit = UNIT_PLAYER,
+        textureFunc = GetPortraitFromDB,
+    },
+    [FRAME_TARGET] = {
+        unit = UNIT_TARGET,
+        textureFunc = ResolveTargetPortrait,
+    },
+    [FRAME_PET] = {
+        unit = UNIT_PLAYER, -- pour accéder à CustomPortraitDB[player]
+        textureFunc = function(owner)
+            return GetPortraitFromDB(owner, UnitName(UNIT_PET))
+        end,
+    },
+}
+
+local function InitConfiguredPortraits()
+    for frameName, config in pairs(PortraitFrames) do
+        local frame = _G[frameName]
+        if frame then
+            local unitKeyFunc = function() return GetUnitName(config.unit) end
+            HookPortrait(frame, unitKeyFunc, config.textureFunc)
+            OverridePortraitFrame(frame, unitKeyFunc(), config.textureFunc)
+        end
+    end
+end
+
 --- Fonction refactorisée : à l'entrée en jeu
 function CustomPortrait:PLAYER_ENTERING_WORLD()
     C_Timer.After(0.5, function()
-        HookBasePortraits()
-        OverrideBasePortraits()
+        InitConfiguredPortraits()
         self:RequestGroupPortraits()
     end)
 end
