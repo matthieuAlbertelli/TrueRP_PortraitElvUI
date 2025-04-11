@@ -122,53 +122,61 @@ end
 -- Événements
 
 --- À l'entrée dans le monde, on hook et override tous les portraits du joueur
-function CustomPortrait:PLAYER_ENTERING_WORLD()
-    C_Timer.After(0.5, function()
+--- Hook les portraits de base (joueur, target, pet)
+local function HookBasePortraits()
+    HookPortrait(_G[FRAME_PLAYER], GetUnitName, function(name)
+        return GetPortraitFromDB(name)
+    end)
+
+    HookPortrait(_G[FRAME_TARGET], function(unit)
+        return UnitName(unit)
+    end, function(name)
         local playerName = GetUnitName(UNIT_PLAYER)
-        local targetName = GetUnitName(UNIT_TARGET)
         local petName = UnitName(UNIT_PET)
 
-        HookPortrait(_G[FRAME_PLAYER], GetUnitName, function(key) return GetPortraitFromDB(key) end)
-        -- HookPortrait(_G[FRAME_TARGET], GetUnitName, function(key) return GetPortraitFromDB(key) end)
-        HookPortrait(_G[FRAME_TARGET],
-            function(unit)
-                return UnitName(unit)
-            end,
-            function(name)
-                local playerName = GetUnitName("player")
-                local petName = UnitName("pet")
+        if CustomPortraitDB[name] and CustomPortraitDB[name].portrait then
+            return CustomPortraitDB[name].portrait
+        end
 
-                -- 1. Cas joueur normal
-                if CustomPortraitDB[name] and CustomPortraitDB[name].portrait then
-                    return CustomPortraitDB[name].portrait
-                end
-
-                -- 2. Cas pet ciblé d’un membre du groupe
-                for i = 1, GetNumPartyMembers() do
-                    local unit = "party" .. i
-                    local petUnit = unit .. "pet"
-                    if UnitExists(petUnit) and UnitName(petUnit) == name then
-                        local owner = GetUnitName(unit)
-                        return GetPortraitFromDB(owner, name)
-                    end
-                end
-
-                -- 3. Cas spécial : tu cibles ton propre familier
-                if name == petName then
-                    return GetPortraitFromDB(playerName, petName)
-                end
-
-                return nil
+        for i = 1, GetNumPartyMembers() do
+            local unit = "party" .. i
+            local petUnit = unit .. "pet"
+            if UnitExists(petUnit) and UnitName(petUnit) == name then
+                local owner = GetUnitName(unit)
+                return GetPortraitFromDB(owner, name)
             end
-        )
+        end
 
-        HookPortrait(_G[FRAME_PET], function() return playerName end,
-            function(owner) return GetPortraitFromDB(owner, petName) end)
+        if name == petName then
+            return GetPortraitFromDB(playerName, petName)
+        end
 
-        OverridePortraitFrame(_G[FRAME_PLAYER], playerName, function(key) return GetPortraitFromDB(key) end)
-        OverridePortraitFrame(_G[FRAME_TARGET], targetName, function(key) return GetPortraitFromDB(key) end)
-        OverridePortraitFrame(_G[FRAME_PET], playerName, function(owner) return GetPortraitFromDB(owner, petName) end)
+        return nil
+    end)
 
+    HookPortrait(_G[FRAME_PET], function() return GetUnitName(UNIT_PLAYER) end, function(owner)
+        return GetPortraitFromDB(owner, UnitName(UNIT_PET))
+    end)
+end
+
+--- Override les textures initiales (joueur, target, pet)
+local function OverrideBasePortraits()
+    local playerName = GetUnitName(UNIT_PLAYER)
+    local targetName = GetUnitName(UNIT_TARGET)
+    local petName = UnitName(UNIT_PET)
+
+    OverridePortraitFrame(_G[FRAME_PLAYER], playerName, GetPortraitFromDB)
+    OverridePortraitFrame(_G[FRAME_TARGET], targetName, GetPortraitFromDB)
+    OverridePortraitFrame(_G[FRAME_PET], playerName, function(owner)
+        return GetPortraitFromDB(owner, petName)
+    end)
+end
+
+--- Fonction refactorisée : à l'entrée en jeu
+function CustomPortrait:PLAYER_ENTERING_WORLD()
+    C_Timer.After(0.5, function()
+        HookBasePortraits()
+        OverrideBasePortraits()
         self:RequestGroupPortraits()
     end)
 end
