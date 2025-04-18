@@ -1,7 +1,7 @@
 -- frames.lua
 
 local CustomPortrait = _G.TrueRP_CustomPortrait
-local DB = CustomPortraitDBModule
+local DB = TrueRP_DBModule
 local Utils = CustomPortrait.Utils
 
 local ADDON_PREFIX = CustomPortrait.ADDON_PREFIX
@@ -46,10 +46,14 @@ end
 
 -- Initialisation des portraits configurés (joueur, target, pet)
 function Frames.InitConfiguredPortraits()
+    print("InitConfiguredPortraits")
     for frameName, config in pairs(Frames.PortraitFrames) do
         local frame = _G[frameName]
         if frame then
-            local unitKeyFunc = function() return Utils.GetUnitName(config.unit) end
+            local unitKeyFunc = function()
+                print(Utils.GetUnitName(config.unit))
+                return Utils.GetUnitName(config.unit)
+            end
             Frames.HookPortrait(frame, unitKeyFunc, config.textureFunc)
             Frames.OverridePortraitFrame(frame, unitKeyFunc(), config.textureFunc)
         end

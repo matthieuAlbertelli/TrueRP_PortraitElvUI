@@ -1,7 +1,7 @@
 -- comm.lua
 
 local CustomPortrait = _G.TrueRP_CustomPortrait
-local DB = CustomPortraitDBModule
+local DB = TrueRP_DBModule
 
 local Comm = {}
 

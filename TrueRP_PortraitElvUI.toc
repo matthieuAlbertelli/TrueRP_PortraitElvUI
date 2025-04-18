@@ -4,13 +4,13 @@
 ## Author: Matthieu Albertelli
 ## Version: 1.0
 # Dependencies: TrueRP_PortraitSelector
-## RequiredDeps: ElvUI, TrueRP_PortraitSelector
+## RequiredDeps: TrueRP_DB, ElvUI, TrueRP_PortraitSelector
 ## LoadWith: ElvUI
 
 core.lua
 config.lua
 utils.lua
-db.lua
+# db.lua
 network.lua
 frames.lua
 events.lua
