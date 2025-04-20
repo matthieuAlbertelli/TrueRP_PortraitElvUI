@@ -46,12 +46,12 @@ end
 
 -- Initialisation des portraits configurés (joueur, target, pet)
 function Frames.InitConfiguredPortraits()
-    print("InitConfiguredPortraits")
+    -- print("InitConfiguredPortraits")
     for frameName, config in pairs(Frames.PortraitFrames) do
         local frame = _G[frameName]
         if frame then
             local unitKeyFunc = function()
-                print(Utils.GetUnitName(config.unit))
+                -- print(Utils.GetUnitName(config.unit))
                 return Utils.GetUnitName(config.unit)
             end
             Frames.HookPortrait(frame, unitKeyFunc, config.textureFunc)
